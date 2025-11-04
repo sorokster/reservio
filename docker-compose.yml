@@ -1,0 +1,42 @@
+x-settings:
+  x-environ: &default-environ
+    POSTGRES_HOST: ${POSTGRES_HOST}
+    POSTGRES_DB: ${POSTGRES_DB}
+    POSTGRES_USER: ${POSTGRES_USER}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+services:
+  reservio.app:
+    container_name: reservio.app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    environment: *default-environ
+    depends_on:
+      - reservio.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    networks:
+      - backend
+
+  reservio.db:
+    container_name: reservio.db
+    hostname: reservio.db
+    image: postgres:15
+    environment: *default-environ
+    ports:
+      - "${DB_EXTERNAL_PORT}:${DB_INTERNAL_PORT}"
+    volumes:
+      - reservio_db_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  reservio_db_data:
