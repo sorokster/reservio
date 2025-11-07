@@ -30,7 +30,7 @@ services:
     ports:
       - "${DB_EXTERNAL_PORT}:${DB_INTERNAL_PORT}"
     volumes:
-      - reservio_db_data:/var/lib/postgresql/data
+      - reservio-db-data:/var/lib/postgresql/data
     networks:
       - backend
 
@@ -39,4 +39,4 @@ networks:
     driver: bridge
 
 volumes:
-  reservio_db_data:
+  reservio-db-data:
