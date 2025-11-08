@@ -1,5 +1,5 @@
-import { MenuItem } from "./menu-item";
-import { Cuisine } from "./cuisine";
+import type { MenuItem } from "./menu-item";
+import type { Cuisine } from "./cuisine";
 
 export interface Menu {
   id: number;
@@ -10,4 +10,3 @@ export interface Menu {
   cuisines: Cuisine[];
   items: MenuItem[];
 }
-

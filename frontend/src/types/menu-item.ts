@@ -5,5 +5,6 @@ export interface MenuItem {
   price: string;
   cuisine: number;
   menu: number;
+  restaurant_id?: number;
 }
 

@@ -1,9 +1,11 @@
 import Header from "@/src/components/Header";
 import Footer from "@/src/components/Footer";
 import { DM_Sans } from "next/font/google";
-import SessionProvider from "@/src/components/SessionProvider";
+import SessionProvider from "@/src/components/Auth/SessionProvider";
+import Preloader from "@/src/components/common/Preloader";
 
-import "./globals.css";
+import "@/src/styles/globals.css";
+import "@/src/styles/variables.css";
 
 const DMSans = DM_Sans({ variable: "--font-dm-sans", subsets: ["latin"] });
 
@@ -12,6 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
     <body className={`${DMSans.variable} antialiased`}>
     <SessionProvider>
+      <Preloader />
       <main className="main">
         <Header />
         <div className="content">

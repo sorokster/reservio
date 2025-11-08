@@ -51,9 +51,14 @@ class LoginView(View):
             username = data.get('username')
             password = data.get('password')
 
+            if not username or not password:
+                return JsonResponse({'status': 'error', 'detail': 'Username and password are required'}, status=400)
+
             user = authenticate(request, username=username, password=password)
             if user is not None:
                 login(request, user)
+                # Get user groups
+                groups = [group.name for group in user.groups.all()]
                 return JsonResponse({
                     'status': 'success',
                     'id': user.id,
@@ -61,10 +66,13 @@ class LoginView(View):
                     'email': user.email,
                     'first_name': user.first_name,
                     'last_name': user.last_name,
+                    'groups': groups,
                 })
             else:
                 return JsonResponse({'status': 'error', 'detail': 'Invalid username or password'}, status=400)
 
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'detail': 'Invalid JSON format'}, status=400)
         except Exception as e:
             return JsonResponse({'status': 'error', 'detail': str(e)}, status=400)
 

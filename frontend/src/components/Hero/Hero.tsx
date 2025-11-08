@@ -4,7 +4,7 @@ import React from "react";
 
 const Hero: React.FC = () => {
     return (
-        <div className="min-h-screen pb-20">
+        <div className="py-16">
             {/* Hero Section */}
             <div className="relative flex flex-col items-center justify-center text-sm px-4 md:px-16 lg:px-24 xl:px-40 text-black">
                 <div className="absolute top-28 xl:top-10 -z-10 left-1/4 size-72 sm:size-96 bg-[#8B1C3B] blur-[100px] opacity-30"></div>
@@ -33,20 +33,17 @@ const Hero: React.FC = () => {
                 </div>
 
                 {/* Headline */}
-                <h1 className="text-5xl md:text-6xl font-semibold max-w-5xl text-center mt-4">
+                <h1 className="text-4xl md:text-5xl font-semibold max-w-5xl text-center mt-4">
                     Seamless table booking for <span className="bg-gradient-to-r from-[#8B1C3B] to-[#8B1C3B] bg-clip-text text-transparent">fine-dining restaurants</span>
                 </h1>
 
-                <p className="max-w-md text-center text-base my-7">
+                <p className="max-w-md text-center text-sm my-7">
                     Discover, reserve, and enjoy the best restaurants with real-time availability.
                 </p>
 
                 {/* CTA Buttons */}
                 <div className="flex items-center gap-4">
-                    <a href="/login" className="bg-[#8B1C3B] hover:bg-[#6E152F] text-white rounded-full px-9 py-4 m-1 ring-offset-2 ring-1 ring-[#8B1C3B]">
-                        Book now
-                    </a>
-                    <a href="/restaurants" className="border border-[#8B1C3B] text-[#8B1C3B] hover:bg-[#8B1C3B]/10 rounded-full px-9 py-4 m-1">
+                    <a href="/restaurants" className="bg-[#8B1C3B] hover:bg-[#6E152F] text-white rounded-full px-9 py-4 m-1 ring-offset-2 ring-1 ring-[#8B1C3B]">
                         Explore restaurants
                     </a>
                 </div>

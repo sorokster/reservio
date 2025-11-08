@@ -1,20 +1,30 @@
 "use client";
 
 import React from "react";
-import {NAVIGATION} from "@/src/configs/navigation";
+import { FooterBrand } from "./FooterBrand";
+import { FooterSection } from "./FooterSection";
+import { FooterCopyright } from "./FooterCopyright";
+import { FOOTER_LINKS } from "@/src/configs/footer";
 
 const Footer: React.FC = () => {
+
   return (
-    <footer className="flex flex-col bg-white items-center justify-around w-full py-8 text-sm text-gray-800/70">
-      <div className="flex items-center gap-8">
-          {NAVIGATION.map((item) => (
-            <a href={item.href} key={item.label} className="font-medium text-gray-500 hover:text-black transition-all">
-                {item.label}
-            </a>
-          ))}
+    <footer className="bg-white border-t border-gray-200">
+      <div className="container mx-auto px-4 py-12">
+        {/* Main Footer Content */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
+          <FooterBrand />
+
+          <FooterSection title="Restaurants" links={FOOTER_LINKS.restaurants} />
+
+          <FooterSection title="Company" links={FOOTER_LINKS.company} />
+
+          <FooterSection title="Support" links={FOOTER_LINKS.support} />
+        </div>
+
+        {/* Copyright Section */}
+        <FooterCopyright />
       </div>
-      <p className="mt-8 text-center">Copyright © 2025 <a href="https://reservio.com">Reservio</a>. All rights
-        reservered.</p>
     </footer>
   );
 };

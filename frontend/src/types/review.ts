@@ -1,4 +1,4 @@
-import { Restaurant } from "./restaurant";
+import type { Restaurant } from "./restaurant";
 
 export interface Review {
   id: number;

@@ -1,5 +1,6 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { API_ENDPOINTS } from "@/src/services/api.config";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -15,7 +16,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          const res = await fetch("http://localhost:8000/auth/login/", {
+          const res = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -34,6 +35,7 @@ export const authOptions: NextAuthOptions = {
               email: data.email,
               first_name: data.first_name,
               last_name: data.last_name,
+              groups: data.groups || [],
             };
           }
 
@@ -46,14 +48,29 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      // Initial sign in
       if (user) {
         token.id = user.id;
         token.username = user.username;
         token.email = user.email;
         token.first_name = user.first_name;
         token.last_name = user.last_name;
+        token.groups = (user as any).groups || [];
       }
+      
+      // Update session when updateSession() is called
+      // The data passed to updateSession() is available in the session parameter
+      if (trigger === "update" && session) {
+        // Update token with new user data from session
+        if (session.id !== undefined) token.id = session.id;
+        if (session.username !== undefined) token.username = session.username;
+        if (session.email !== undefined) token.email = session.email;
+        if (session.first_name !== undefined) token.first_name = session.first_name;
+        if (session.last_name !== undefined) token.last_name = session.last_name;
+        if (session.groups !== undefined) token.groups = session.groups;
+      }
+      
       return token;
     },
     async session({ session, token }) {
@@ -63,12 +80,13 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string;
         session.user.first_name = token.first_name as string;
         session.user.last_name = token.last_name as string;
+        session.user.groups = (token.groups as string[]) || [];
       }
       return session;
     },
   },
   pages: {
-    signIn: "/login",
+    signIn: "/auth/login",
   },
   session: {
     strategy: "jwt",

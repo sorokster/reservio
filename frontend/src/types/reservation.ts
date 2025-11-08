@@ -1,5 +1,5 @@
-import { Restaurant } from "./restaurant";
-import { Table } from "./table";
+import type { Restaurant } from "./restaurant";
+import type { Table } from "./table";
 
 export interface ReservationSlot {
   id: number;

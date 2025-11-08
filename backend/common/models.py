@@ -54,11 +54,12 @@ class Company(models.Model):
     description = models.TextField(blank=True)
     website = models.URLField(blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
+    owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='owned_companies', db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        indexes = [models.Index(fields=['name'])]
+        indexes = [models.Index(fields=['name']), models.Index(fields=['owner'])]
 
     def __str__(self):
         return self.name
@@ -75,6 +76,7 @@ class Restaurant(models.Model):
     address = models.CharField(max_length=255)
     phone = models.CharField(max_length=20, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
+    map_position = models.JSONField(blank=True, null=True, help_text="Map coordinates in format: {'lat': float, 'lng': float}")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -257,3 +259,47 @@ class Review(models.Model):
 
     def __str__(self):
         return f'{self.user.username} - {self.restaurant.name} - {self.created_at.strftime("%Y-%m-%d")}'
+
+
+# ----------------------------
+# FavouriteRestaurant
+# ----------------------------
+class FavouriteRestaurant(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='favourite_restaurants', db_index=True)
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='favourited_by', db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'restaurant')
+        indexes = [
+            models.Index(fields=['user', 'restaurant']),
+            models.Index(fields=['user']),
+            models.Index(fields=['restaurant']),
+        ]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user.username} - {self.restaurant.name}'
+
+
+# ----------------------------
+# FavouriteRestaurantItem
+# ----------------------------
+class FavouriteRestaurantItem(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='favourite_menu_items', db_index=True)
+    menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name='favourited_by', db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'menu_item')
+        indexes = [
+            models.Index(fields=['user', 'menu_item']),
+            models.Index(fields=['user']),
+            models.Index(fields=['menu_item']),
+        ]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user.username} - {self.menu_item.name}'

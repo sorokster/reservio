@@ -20,6 +20,8 @@ router.register(r'reservations', ReservationViewSet)
 router.register(r'reservation-slots', ReservationSlotViewSet)
 router.register(r'reservation-statuses', ReservationStatusViewSet)
 router.register(r'reviews', ReviewViewSet)
+router.register(r'favourite-restaurants', FavouriteRestaurantViewSet)
+router.register(r'favourite-restaurant-items', FavouriteRestaurantItemViewSet)
 
 # ----------------------------
 # URLs

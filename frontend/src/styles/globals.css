@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@tailwind utilities;
+
+body {
+  font-family: "DM Sans", sans-serif;
+  min-height: 100vh;
+  background-color: var(--color-gray-100);
+  font-size: 0.875rem; /* 14px instead of default 16px */
+  line-height: 1.5;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100vh;
+}
+
+section {
+  margin: 4rem 0;
+}
+
+/* Hide scrollbar but keep scrolling functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+

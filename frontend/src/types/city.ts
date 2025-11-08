@@ -1,4 +1,4 @@
-import { Country } from "./country";
+import type { Country } from "./country";
 
 export interface City {
   id: number;
