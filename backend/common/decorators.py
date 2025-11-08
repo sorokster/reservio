@@ -2,13 +2,13 @@ from functools import wraps
 
 from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
+from django.shortcuts import redirect
 
 
 def anonymous_required(func):
     @wraps(func)
     def wrapper(request, *args, **kwargs):
         if request.user.is_authenticated:
-            # Return JSON response for API endpoints instead of redirect
             return JsonResponse({
                 'status': 'error',
                 'detail': 'You are already authenticated'
