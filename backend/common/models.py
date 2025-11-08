@@ -14,10 +14,10 @@ class WeekDay(models.IntegerChoices):
     SUN = 7, 'Sunday'
 
 
-class SlotStatus(models.TextChoices):
-    PENDING = 'pending', 'Pending'
-    CONFIRMED = 'confirmed', 'Confirmed'
-    CANCELED = 'canceled', 'Canceled'
+class SlotStatus(models.IntegerChoices):
+    PENDING = 0, 'Pending'
+    CONFIRMED = 1, 'Confirmed'
+    CANCELED = 2, 'Canceled'
 
 
 # ----------------------------
@@ -26,6 +26,9 @@ class SlotStatus(models.TextChoices):
 class Country(models.Model):
     name = models.CharField(max_length=255, unique=True, db_index=True)
     code = models.CharField(max_length=3, unique=True, db_index=True)
+
+    class Meta:
+        ordering = ['name']
 
     def __str__(self):
         return self.name
@@ -41,6 +44,7 @@ class City(models.Model):
     class Meta:
         unique_together = ('country', 'name')
         indexes = [models.Index(fields=['name'])]
+        ordering = ['country', 'name']
 
     def __str__(self):
         return f'{self.name}, {self.country.name}'
@@ -50,16 +54,18 @@ class City(models.Model):
 # Company
 # ----------------------------
 class Company(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='owned_companies', db_index=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     website = models.URLField(blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
-    owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='owned_companies', db_index=True)
+    logo = models.ImageField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         indexes = [models.Index(fields=['name']), models.Index(fields=['owner'])]
+        ordering = ['name']
 
     def __str__(self):
         return self.name
@@ -76,15 +82,43 @@ class Restaurant(models.Model):
     address = models.CharField(max_length=255)
     phone = models.CharField(max_length=20, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
-    map_position = models.JSONField(blank=True, null=True, help_text="Map coordinates in format: {'lat': float, 'lng': float}")
+    preview = models.ImageField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        indexes = [models.Index(fields=['name']), models.Index(fields=['company'])]
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['company']),
+            models.Index(fields=['country']),
+            models.Index(fields=['city']),
+        ]
+        ordering = ['name']
 
     def __str__(self):
-        return f'{self.company.name} — {self.name} — {self.address}'
+        return f'{self.company.name} — {self.name}'
+
+
+# ----------------------------
+# Restaurant Position
+# ----------------------------
+class RestaurantPosition(models.Model):
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='positions', db_index=True)
+    country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name='positions', db_index=True)
+    city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='positions', db_index=True)
+    address = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    latitude = models.FloatField(blank=True, null=True)
+    longitude = models.FloatField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.restaurant.name} — {self.latitude} — {self.longitude}'
 
 
 # ----------------------------
@@ -102,6 +136,7 @@ class Schedule(models.Model):
     class Meta:
         unique_together = ('restaurant', 'weekday')
         indexes = [models.Index(fields=['restaurant', 'weekday'])]
+        ordering = ['restaurant', 'weekday']
 
     def __str__(self):
         return f'{self.restaurant.name} - {self.weekday.label} - {self.time_from} - {self.time_to}'
@@ -118,6 +153,7 @@ class Table(models.Model):
     class Meta:
         unique_together = ('restaurant', 'number')
         indexes = [models.Index(fields=['restaurant', 'number'])]
+        ordering = ['restaurant', 'number']
 
     def __str__(self):
         return f'{self.restaurant.name} - Table {self.number}'
@@ -152,6 +188,7 @@ class Menu(models.Model):
     class Meta:
         unique_together = ('restaurant', 'name')
         indexes = [models.Index(fields=['restaurant', 'name'])]
+        ordering = ['restaurant', 'order', 'name']
 
     def __str__(self):
         return f'{self.restaurant.name} - {self.name}'
@@ -161,11 +198,51 @@ class Menu(models.Model):
 # Cuisine
 # ----------------------------
 class Cuisine(models.Model):
-    menu = models.ManyToManyField(Menu, related_name='cuisines')
-    name = models.CharField(max_length=255, unique=True)
+    restaurant = models.ManyToManyField(Restaurant, related_name='cuisines')
+    name = models.CharField(max_length=255, unique=True, db_index=True)
+
+    class Meta:
+        ordering = ['name']
 
     def __str__(self):
         return f'{self.name}'
+
+
+# ----------------------------
+# MenuCategory
+# ----------------------------
+class MenuCategory(models.Model):
+    menu = models.ManyToManyField(Menu, related_name='categories', through='MenuCategoryOrder')
+    name = models.CharField(max_length=255, unique=True, db_index=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return f'{self.name}'
+
+
+# ----------------------------
+# MenuCategoryOrder (Intermediate model for Menu-MenuCategory ManyToMany)
+# ----------------------------
+class MenuCategoryOrder(models.Model):
+    menu = models.ForeignKey(Menu, on_delete=models.CASCADE, related_name='category_orders', db_index=True)
+    category = models.ForeignKey(MenuCategory, on_delete=models.CASCADE, related_name='menu_orders', db_index=True)
+    order = models.PositiveIntegerField(default=0, db_index=True)
+
+    class Meta:
+        unique_together = [
+            ('menu', 'category'),  # One category can appear only once per menu
+            ('menu', 'order'),     # Order must be unique within each menu
+        ]
+        indexes = [
+            models.Index(fields=['menu', 'order']),
+            models.Index(fields=['category', 'order']),
+        ]
+        ordering = ['menu', 'order']
+
+    def __str__(self):
+        return f'{self.menu.name} - {self.category.name} (order: {self.order})'
 
 
 # ----------------------------
@@ -173,14 +250,20 @@ class Cuisine(models.Model):
 # ----------------------------
 class MenuItem(models.Model):
     menu = models.ForeignKey(Menu, on_delete=models.CASCADE, related_name='items', db_index=True)
-    cuisine = models.ForeignKey(Cuisine, on_delete=models.CASCADE, related_name='items', db_index=True)
+    category = models.ForeignKey(MenuCategory, on_delete=models.CASCADE, related_name='items', db_index=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    weight = models.FloatField(blank=True, null=True)
+    is_new = models.BooleanField(default=False)
     price = models.DecimalField(max_digits=8, decimal_places=2)
+    image = models.ImageField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('menu', 'cuisine', 'name')  # уникальность блюда в меню + кухня
-        indexes = [models.Index(fields=['menu', 'cuisine', 'name'])]
+        unique_together = ('menu', 'category', 'name')
+        indexes = [models.Index(fields=['menu', 'category', 'name']), models.Index(fields=['category', 'name'])]
+        ordering = ['menu', 'category', 'name']
 
     def __str__(self):
         return self.name
@@ -203,6 +286,7 @@ class Reservation(models.Model):
             models.Index(fields=['table']),
             models.Index(fields=['restaurant', 'date'])
         ]
+        ordering = ['-date', '-created_at']
 
     def __str__(self):
         return f'{self.user.username} - {self.table} on {self.date}'
@@ -220,6 +304,7 @@ class ReservationSlot(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=['reservation', 'time_from'])]
+        ordering = ['reservation', 'time_from']
 
     def __str__(self):
         return f'{self.reservation} - {self.time_from} to {self.time_to}'
@@ -227,10 +312,10 @@ class ReservationSlot(models.Model):
 
 # ----------------------------
 # ReservationStatus
-# ----------------------------
+# ---------------------------ф-
 class ReservationStatus(models.Model):
     reservation = models.ForeignKey(Reservation, on_delete=models.CASCADE, related_name='statuses', db_index=True)
-    status = models.CharField(max_length=10, choices=SlotStatus.choices, db_index=True)
+    status = models.IntegerField(choices=SlotStatus.choices, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -248,7 +333,11 @@ class ReservationStatus(models.Model):
 class Review(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews', db_index=True)
     restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='reviews', db_index=True)
-    rating = models.DecimalField(max_digits=3, decimal_places=2)
+    food = models.DecimalField(max_digits=3, decimal_places=2)
+    interior = models.DecimalField(max_digits=3, decimal_places=2)
+    atmosphere = models.DecimalField(max_digits=3, decimal_places=2)
+    service = models.DecimalField(max_digits=3, decimal_places=2)
+    overall = models.DecimalField(max_digits=3, decimal_places=2)
     comment = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -266,7 +355,7 @@ class Review(models.Model):
 # ----------------------------
 class FavouriteRestaurant(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='favourite_restaurants', db_index=True)
-    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='favourited_by', db_index=True)
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='favourite_by', db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -288,7 +377,7 @@ class FavouriteRestaurant(models.Model):
 # ----------------------------
 class FavouriteRestaurantItem(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='favourite_menu_items', db_index=True)
-    menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name='favourited_by', db_index=True)
+    menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name='favourite_by', db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

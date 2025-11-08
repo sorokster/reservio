@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'corsheaders',
 
-    'backend.api',
+    'backend.b2c',
     'backend.common',
 ]
 
@@ -147,8 +147,8 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-MEDIA_URL = '/frontend/public/assets/'
-MEDIA_ROOT = BASE_DIR / 'frontend' / 'public' / 'assets'
+MEDIA_URL = '/b2c/public/assets/'
+MEDIA_ROOT = BASE_DIR / 'b2c' / 'public' / 'assets'
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = ["http://localhost:3000"]

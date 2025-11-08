@@ -1,165 +1,259 @@
-from django.core.management.base import BaseCommand
 import random
-from datetime import time
+from datetime import time, timedelta, date
+from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
-from backend.common.models import Country, City, Company, Restaurant, Schedule, Table, Menu, Cuisine, MenuItem, Review
-
-class Command(BaseCommand):
-    help = "Populate database with test restaurants, menus, schedules, tables, and reviews"
-
-    def handle(self, *args, **options):
-        # ----------------------------
-        # Create 1 Country
-        # ----------------------------
-        ukraine, _ = Country.objects.get_or_create(name="Ukraine", code="UA")
+from backend.common.models import (
+    Country, City, Company, Restaurant, RestaurantPosition, Schedule, Table, TableStatus,
+    Menu, Cuisine, MenuCategory, MenuCategoryOrder, MenuItem, Reservation, ReservationSlot, ReservationStatus,
+    Review, FavouriteRestaurant, FavouriteRestaurantItem, WeekDay, SlotStatus
+)
 
         # ----------------------------
-        # Create 10 Cities
+# Base data
         # ----------------------------
-        city_names = ["Kyiv", "Lviv", "Odesa", "Kharkiv", "Dnipro", "Zaporizhzhia",
-                      "Ivano-Frankivsk", "Vinnytsia", "Chernihiv", "Sumy"]
-        cities = [City.objects.get_or_create(name=name, country=ukraine)[0] for name in city_names]
+COUNTRIES = [
+    {"name": "United States", "code": "US"},
+    {"name": "Germany", "code": "DE"},
+    {"name": "Ukraine", "code": "UA"},
+]
+
+CITIES_BY_COUNTRY = {
+    "US": ["New York", "Los Angeles", "Chicago"],
+    "DE": ["Berlin", "Munich", "Hamburg"],
+    "UA": ["Kyiv", "Lviv", "Odesa"],
+}
+
+COMPANY_NAMES = ["Gastro Group", "Food Planet", "Delight Co", "TasteLab", "UrbanEats"]
+MENUS = ["Breakfast", "Lunch", "Dinner", "Drinks", "Desserts"]
+CUISINES = ["Italian", "Japanese", "American", "Mexican", "Ukrainian", "French"]
+MENU_CATEGORIES = ["Starters", "Main Course", "Desserts", "Drinks", "Salads", "Snacks", "Appetizers", "Soups", "Beverages", "Sides"]
 
         # ----------------------------
-        # Create 20 Companies
+# Helper functions
         # ----------------------------
-        company_names = [f"Company {i}" for i in range(1, 21)]
-        companies = [Company.objects.get_or_create(name=name, defaults={'description': f'{name} in Ukraine'})[0] for name in company_names]
+def create_users(n=15):
+    users = []
+    for i in range(n):
+        user, created = User.objects.get_or_create(
+            username=f"user{i+1}",
+            defaults={"email": f"user{i+1}@example.com"},
+        )
+        if created:
+            user.set_password("1234")
+            user.save()
+        users.append(user)
+    return users
 
-        # ----------------------------
-        # Create 100 restaurants
-        # ----------------------------
-        restaurants = []
-        existing_restaurant_names = set(Restaurant.objects.values_list('name', flat=True))
-        for i in range(100):
-            company = random.choice(companies)
-            city = random.choice(cities)
-            name = f"{company.name} {city.name} Branch {i + 1}"
-            while name in existing_restaurant_names:
-                name += f"-{random.randint(1, 999)}"
-            existing_restaurant_names.add(name)
-            address = f"{random.randint(1, 100)} {city.name} Street"
-            phone = f"+380{random.randint(500000000, 699999999)}"
-            email = f"{city.name.lower()}_{i + 1}@{company.name.replace(' ', '').lower()}.com"
-            restaurants.append(Restaurant(
-                company=company,
-                country=ukraine,
-                city=city,
-                name=name,
-                address=address,
-                phone=phone,
-                email=email
-            ))
+def create_countries_and_cities():
+    for c in COUNTRIES:
+        country, _ = Country.objects.get_or_create(name=c["name"], code=c["code"])
+        for city_name in CITIES_BY_COUNTRY[c["code"]]:
+            City.objects.get_or_create(country=country, name=city_name)
 
-        Restaurant.objects.bulk_create(restaurants)
-        all_restaurants = list(Restaurant.objects.all())
+def create_companies(users):
+    for name in COMPANY_NAMES:
+        owner = random.choice(users)
+        Company.objects.create(
+            owner=owner,
+            name=name,
+            description=f"{name} specializes in modern dining experiences.",
+            website=f"https://{name.replace(' ', '').lower()}.com",
+            email=f"info@{name.replace(' ', '').lower()}.com",
+        )
 
-        # ----------------------------
-        # Create menu, cuisines, items
-        # ----------------------------
-        cuisine_names = ["Italian", "Japanese", "Ukrainian", "French", "Mexican",
-                         "Chinese", "Indian", "Mediterranean", "Seafood", "Fast Food"]
+def create_restaurants():
+    all_companies = list(Company.objects.all())
+    all_countries = list(Country.objects.all())
 
-        for restaurant in all_restaurants:
-            menu_name = f"{restaurant.name} Menu"
-            menu, _ = Menu.objects.get_or_create(restaurant=restaurant, name=menu_name)
+    for _ in range(15):
+        company = random.choice(all_companies)
+        country = random.choice(all_countries)
+        city = random.choice(list(City.objects.filter(country=country)))
 
-            cuisines_for_restaurant = random.sample(cuisine_names, random.randint(3, 5))
-            cuisines = []
+        restaurant = Restaurant.objects.create(
+                    company=company,
+            country=country,
+            city=city,
+            name=f"{city.name} {random.choice(['Bistro', 'Grill', 'Cafe', 'Tavern'])}",
+            address=f"{random.randint(1,200)} {random.choice(['Main St', 'Central Ave', 'Broadway'])}",
+            phone=f"+{random.randint(100000000,999999999)}",
+            email=f"contact@{city.name.lower()}.example.com",
+        )
 
-            for cuisine_name in cuisines_for_restaurant:
+        # 1–2 positions per restaurant
+        for _ in range(random.randint(1, 2)):
+            RestaurantPosition.objects.create(
+                restaurant=restaurant,
+                country=country,
+                    city=city,
+                address=f"{random.randint(1,200)} {random.choice(['Main St', 'Central Ave', 'Broadway'])}, {city.name}",
+                description=f"Branch of {restaurant.name} located in {city.name}.",
+                latitude=round(random.uniform(-90, 90), 6),
+                longitude=round(random.uniform(-180, 180), 6),
+            )
+
+def create_schedules():
+    for restaurant in Restaurant.objects.all():
+        start_time = time(9, 0)
+        end_time = time(22, 0)
+        for day in WeekDay:
+            if day in [WeekDay.SAT, WeekDay.SUN]:
+                if random.choice([True, False]):
+                    is_closed = True
+                    time_from = time_to = None
+                else:
+                    is_closed = False
+                    time_from = time(10, 0)
+                    time_to = time(20, 0)
+            else:
+                is_closed = False
+                time_from = start_time
+                time_to = end_time
+            Schedule.objects.create(
+                restaurant=restaurant,
+                weekday=day,
+                is_closed=is_closed,
+                time_from=time_from,
+                time_to=time_to,
+            )
+
+def create_tables():
+    for restaurant in Restaurant.objects.all():
+        for i in range(1, random.randint(6, 12)):
+            table = Table.objects.create(
+                restaurant=restaurant,
+                number=str(i),
+                seats=random.choice([2, 4, 6])
+            )
+            TableStatus.objects.create(table=table, is_booked=random.choice([False, True]))
+
+
+def create_menus_and_items():
+    # Create all cuisines
+    all_cuisines = []
+    for cuisine_name in CUISINES:
                 cuisine, _ = Cuisine.objects.get_or_create(name=cuisine_name)
-                if not menu.cuisines.filter(id=cuisine.id).exists():
-                    cuisine.menu.add(menu)
-                cuisines.append(cuisine)
+        all_cuisines.append(cuisine)
 
-            for cuisine in cuisines:
-                existing_item_names = set(
-                    MenuItem.objects.filter(menu=menu, cuisine=cuisine).values_list('name', flat=True)
+    # Create all unique menu categories
+    all_categories = []
+    for category_name in MENU_CATEGORIES:
+        category, _ = MenuCategory.objects.get_or_create(name=category_name)
+        all_categories.append(category)
+
+    # Assign cuisines to restaurants
+    for restaurant in Restaurant.objects.all():
+        restaurant_cuisines = random.sample(all_cuisines, random.randint(2, len(all_cuisines)))
+        restaurant.cuisines.set(restaurant_cuisines)
+
+        # Create menus for each restaurant
+        for menu_name in MENUS:
+            menu = Menu.objects.create(
+                restaurant=restaurant,
+                name=menu_name,
+                description=f"{menu_name} menu.",
+                order=MENUS.index(menu_name)
+            )
+
+            # Select random categories for this menu (max 5 categories)
+            n_categories = random.randint(2, min(5, len(all_categories)))
+            selected_categories = random.sample(all_categories, n_categories)
+            
+            # Link categories to menu via ManyToMany with order
+            for order, category in enumerate(selected_categories, start=1):
+                MenuCategoryOrder.objects.get_or_create(
+                    menu=menu,
+                    category=category,
+                    defaults={'order': order}
                 )
-                for _ in range(random.randint(40, 50)):
-                    while True:
-                        item_name = f"{cuisine.name} Dish {random.randint(1, 10000)}"
-                        if item_name not in existing_item_names:
-                            existing_item_names.add(item_name)
-                            break
-                    price = round(random.uniform(5, 50), 2)
-                    MenuItem.objects.create(
+
+            # Create menu items for each category in this menu (max 10 items per category)
+            for category in selected_categories:
+                n_items = random.randint(2, 10)
+                for i in range(n_items):
+                    # Make item name unique by including menu name to avoid duplicates
+                    item_name = f"{menu_name} {category.name} Item {i + 1}"
+                    MenuItem.objects.get_or_create(
                         menu=menu,
-                        cuisine=cuisine,
+                        category=category,
                         name=item_name,
-                        description=f"Tasty {item_name}",
-                        price=price
+                        defaults={
+                            'description': f"Delicious {category.name.lower()} from {menu_name} menu.",
+                            'weight': random.randint(100, 500),
+                            'is_new': random.choice([True, False]),
+                            'price': round(random.uniform(5, 30), 2),
+                        }
                     )
 
-        # ----------------------------
-        # Create schedule
-        # ----------------------------
-        for restaurant in all_restaurants:
-            schedules = []
-            for weekday in range(1, 8):
-                is_closed = False
-                if weekday in [6, 7]:
-                    is_closed = random.choice([True, False])
-                if is_closed:
-                    time_from = None
-                    time_to = None
-                else:
-                    start_hour = random.randint(9, 12)
-                    end_hour = random.randint(20, 23)
-                    time_from = time(start_hour, 0)
-                    time_to = time(end_hour, 0)
-                schedules.append(Schedule(
+def create_reservations(users):
+    all_restaurants = list(Restaurant.objects.all())
+    for _ in range(50):
+        user = random.choice(users)
+        restaurant = random.choice(all_restaurants)
+        table = random.choice(list(restaurant.tables.all()))
+        reservation_date = date.today() + timedelta(days=random.randint(1, 30))
+        reservation = Reservation.objects.create(
+            user=user,
                     restaurant=restaurant,
-                    weekday=weekday,
-                    is_closed=is_closed,
-                    time_from=time_from,
-                    time_to=time_to
-                ))
-            Schedule.objects.bulk_create(schedules)
+            table=table,
+            date=reservation_date,
+            guests=random.randint(1, table.seats),
+        )
+        ReservationSlot.objects.create(
+            reservation=reservation,
+            time_from=time(random.randint(10, 20), 0),
+            time_to=time(random.randint(21, 23), 0),
+        )
+        ReservationStatus.objects.create(
+            reservation=reservation,
+            status=random.choice(list(SlotStatus.values)),
+        )
 
-        # ----------------------------
-        # Create tables
-        # ----------------------------
-        for restaurant in all_restaurants:
-            tables = []
-            num_tables = random.randint(10, 25)
-            existing_table_numbers = set(Table.objects.filter(restaurant=restaurant).values_list('number', flat=True))
-            for n in range(1, num_tables + 1):
-                number = str(n)
-                while number in existing_table_numbers:
-                    number = str(n) + f"-{random.randint(1, 999)}"
-                existing_table_numbers.add(number)
-                tables.append(Table(
+def create_reviews(users):
+    for restaurant in Restaurant.objects.all():
+        for _ in range(random.randint(3, 10)):
+            user = random.choice(users)
+            food = round(random.uniform(3, 5), 2)
+            interior = round(random.uniform(3, 5), 2)
+            atmosphere = round(random.uniform(3, 5), 2)
+            service = round(random.uniform(3, 5), 2)
+            overall = round((food + interior + atmosphere + service) / 4, 2)
+            Review.objects.create(
+                user=user,
                     restaurant=restaurant,
-                    number=number,
-                    seats=random.choice([2, 4, 6, 8])
-                ))
-            Table.objects.bulk_create(tables)
+                food=food,
+                interior=interior,
+                atmosphere=atmosphere,
+                service=service,
+                overall=overall,
+                comment=f"{restaurant.name} is a great place! Loved it.",
+            )
+
+def create_favourites(users):
+    for user in users:
+        fav_restaurants = random.sample(list(Restaurant.objects.all()), random.randint(1, 3))
+        for r in fav_restaurants:
+            FavouriteRestaurant.objects.get_or_create(user=user, restaurant=r)
+        fav_items = random.sample(list(MenuItem.objects.all()), random.randint(2, 6))
+        for i in fav_items:
+            FavouriteRestaurantItem.objects.get_or_create(user=user, menu_item=i)
 
         # ----------------------------
-        # Create users
+# Management Command
         # ----------------------------
-        users = list(User.objects.all())
-        if not users:
-            users = []
-            for i in range(100):
-                user = User.objects.create_user(username=f"user{i}", email=f"user{i}@example.com", password="1234")
-                users.append(user)
+class Command(BaseCommand):
+    help = "Populate the database with realistic restaurant data."
 
-        # ----------------------------
-        # Create reviews
-        # ----------------------------
-        for restaurant in all_restaurants:
-            num_reviews = random.randint(25, 50)
-            existing_reviews = set(Review.objects.filter(restaurant=restaurant).values_list('user_id', flat=True))
-            for _ in range(num_reviews):
-                user = random.choice(users)
-                while user.id in existing_reviews:
-                    user = random.choice(users)
-                existing_reviews.add(user.id)
-                rating = round(random.uniform(1, 5), 2)
-                comment = f"This is a review by {user.username} with rating {rating}"
-                Review.objects.create(user=user, restaurant=restaurant, rating=rating, comment=comment)
-
-        self.stdout.write(self.style.SUCCESS("Database populated successfully!"))
+    def handle(self, *args, **options):
+        self.stdout.write("🚀 Populating database...")
+        users = create_users()
+        create_countries_and_cities()
+        create_companies(users)
+        create_restaurants()
+        create_schedules()
+        create_tables()
+        create_menus_and_items()
+        create_reservations(users)
+        create_reviews(users)
+        create_favourites(users)
+        self.stdout.write(self.style.SUCCESS("🎉 Database populated successfully!"))
