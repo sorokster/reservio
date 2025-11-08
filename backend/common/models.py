@@ -93,6 +93,9 @@ class Restaurant(models.Model):
             models.Index(fields=['company']),
             models.Index(fields=['country']),
             models.Index(fields=['city']),
+            # Composite indexes for common filter combinations
+            models.Index(fields=['country', 'city'], name='common_rest_cntry_city_idx'),
+            models.Index(fields=['country', 'city', 'is_active'], name='common_rest_cntry_city_act_idx'),
         ]
         ordering = ['name']
 
@@ -284,7 +287,10 @@ class Reservation(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=['table']),
-            models.Index(fields=['restaurant', 'date'])
+            models.Index(fields=['restaurant', 'date']),
+            # Composite indexes for common filter combinations
+            models.Index(fields=['user', 'date'], name='common_reserv_user_date_idx'),
+            models.Index(fields=['restaurant', 'date', 'table'], name='common_reserv_rest_dt_tbl_idx'),
         ]
         ordering = ['-date', '-created_at']
 
@@ -343,7 +349,11 @@ class Review(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        indexes = [models.Index(fields=['restaurant', 'created_at'])]
+        indexes = [
+            models.Index(fields=['restaurant', 'created_at']),
+            # Composite index for rating filters
+            models.Index(fields=['restaurant', 'overall'], name='common_review_rest_overall_idx'),
+        ]
         ordering = ['-created_at']
 
     def __str__(self):

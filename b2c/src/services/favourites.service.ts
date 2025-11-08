@@ -38,8 +38,8 @@ class FavouritesService extends ApiService {
     page: number = 1,
     pageSize: number = 10
   ): Promise<PaginatedResponse<FavouriteRestaurant>> {
+    // Note: user_id is ignored on backend for security - it filters by authenticated user
     const params = new URLSearchParams();
-    params.append("user_id", String(userId));
     params.append("page", String(page));
     params.append("page_size", String(pageSize));
     
@@ -54,6 +54,22 @@ class FavouritesService extends ApiService {
         results: response,
       };
     }
+    
+    // Ensure we always return a valid paginated response
+    if (!response || typeof response !== 'object') {
+      return {
+        count: 0,
+        next: null,
+        previous: null,
+        results: [],
+      };
+    }
+    
+    // Ensure results is always an array
+    if (!response.results || !Array.isArray(response.results)) {
+      response.results = [];
+    }
+    
     return response;
   }
 
@@ -64,8 +80,8 @@ class FavouritesService extends ApiService {
     userId: number | string,
     restaurantId: number | string
   ): Promise<FavouriteRestaurant | null> {
+    // Note: user_id is ignored on backend for security - it filters by authenticated user
     const params = new URLSearchParams();
-    params.append("user_id", String(userId));
     params.append("restaurant_id", String(restaurantId));
     
     const url = `${API_ENDPOINTS.FAVOURITES.RESTAURANTS.LIST}?${params.toString()}`;
@@ -105,8 +121,8 @@ class FavouritesService extends ApiService {
     page: number = 1,
     pageSize: number = 10
   ): Promise<PaginatedResponse<FavouriteRestaurantItem>> {
+    // Note: user_id is ignored on backend for security - it filters by authenticated user
     const params = new URLSearchParams();
-    params.append("user_id", String(userId));
     params.append("page", String(page));
     params.append("page_size", String(pageSize));
     
@@ -121,6 +137,22 @@ class FavouritesService extends ApiService {
         results: response,
       };
     }
+    
+    // Ensure we always return a valid paginated response
+    if (!response || typeof response !== 'object') {
+      return {
+        count: 0,
+        next: null,
+        previous: null,
+        results: [],
+      };
+    }
+    
+    // Ensure results is always an array
+    if (!response.results || !Array.isArray(response.results)) {
+      response.results = [];
+    }
+    
     return response;
   }
 
@@ -131,23 +163,34 @@ class FavouritesService extends ApiService {
     userId: number | string
   ): Promise<Map<number, FavouriteRestaurant>> {
     const result = new Map<number, FavouriteRestaurant>();
-    let page = 1;
-    const pageSize = 12;
     
-    while (true) {
-      const response = await this.getFavouriteRestaurants(userId, page, pageSize);
+    try {
+      let page = 1;
+      const pageSize = 12;
       
-      // Add all items to map
-      response.results.forEach((item) => {
-        result.set(item.restaurant.id, item);
-      });
-      
-      // If no more pages, break
-      if (!response.next || response.results.length < pageSize) {
-        break;
+      while (true) {
+        const response = await this.getFavouriteRestaurants(userId, page, pageSize);
+        
+        // Add all items to map
+        if (response.results && Array.isArray(response.results)) {
+          response.results.forEach((item) => {
+            if (item && item.restaurant && item.restaurant.id) {
+              result.set(item.restaurant.id, item);
+            }
+          });
+        }
+        
+        // If no more pages or no results, break
+        if (!response.next || !response.results || response.results.length === 0) {
+          break;
+        }
+        
+        page++;
       }
-      
-      page++;
+    } catch (error) {
+      // If error occurs, return empty map instead of throwing
+      console.error("Error fetching all favourite restaurants:", error);
+      return new Map();
     }
     
     return result;
@@ -189,8 +232,8 @@ class FavouritesService extends ApiService {
     userId: number | string,
     menuItemId: number | string
   ): Promise<FavouriteRestaurantItem | null> {
+    // Note: user_id is ignored on backend for security - it filters by authenticated user
     const params = new URLSearchParams();
-    params.append("user_id", String(userId));
     params.append("menu_item_id", String(menuItemId));
     
     const url = `${API_ENDPOINTS.FAVOURITES.MENU_ITEMS.LIST}?${params.toString()}`;

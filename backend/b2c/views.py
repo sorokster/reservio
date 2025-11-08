@@ -2,10 +2,10 @@ from rest_framework import viewsets, filters, permissions
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Prefetch
 from backend.common.models import (
-    Country, City, Company, Restaurant, Schedule,
-    Table, TableStatus, Menu, Cuisine, MenuItem, MenuCategory,
+    Country, City, Company, Restaurant, RestaurantPosition, Schedule,
+    Table, TableStatus, Menu, Cuisine, MenuItem, MenuCategory, MenuCategoryOrder,
     Reservation, ReservationSlot, ReservationStatus,
     Review, FavouriteRestaurant, FavouriteRestaurantItem
 )
@@ -60,7 +60,16 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        queryset = Restaurant.objects.select_related('company', 'country', 'city').annotate(
+        # Prefetch positions with related country and city
+        positions_prefetch = Prefetch(
+            'positions',
+            queryset=RestaurantPosition.objects.select_related('country', 'city').all()
+        )
+        # Prefetch cuisines (ManyToMany)
+        queryset = Restaurant.objects.select_related('company', 'country', 'city').prefetch_related(
+            'cuisines',
+            positions_prefetch
+        ).annotate(
             avg_rating=Avg('reviews__overall'),
             review_count_annotated=Count('reviews')
         )
@@ -99,7 +108,17 @@ class TableStatusViewSet(viewsets.ModelViewSet):
 # Menu / Cuisine / MenuItem
 # ----------------------------
 class MenuViewSet(viewsets.ModelViewSet):
-    queryset = Menu.objects.select_related('restaurant').prefetch_related('categories', 'categories__items').all()
+    queryset = Menu.objects.select_related('restaurant').prefetch_related(
+        'categories',
+        Prefetch(
+            'items',
+            queryset=MenuItem.objects.select_related('category').all()
+        ),
+        Prefetch(
+            'category_orders',
+            queryset=MenuCategoryOrder.objects.select_related('category').order_by('order')
+        )
+    ).all()
     serializer_class = MenuSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_class = MenuFilter
@@ -134,7 +153,8 @@ class ReservationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = Reservation.objects.select_related('user', 'restaurant', 'table').prefetch_related('time_slots', 'statuses').all()
+        # Use base queryset to avoid duplication
+        queryset = self.queryset
         if self.request.user.is_authenticated:
             if self.request.user.is_staff or self.request.user.is_superuser:
                 return queryset
@@ -185,7 +205,8 @@ class FavouriteRestaurantViewSet(viewsets.ModelViewSet):
     pagination_class = FavouritesPagination
 
     def get_queryset(self):
-        queryset = FavouriteRestaurant.objects.select_related('user', 'restaurant', 'restaurant__city', 'restaurant__country', 'restaurant__company').all()
+        # Use base queryset to avoid duplication
+        queryset = self.queryset
         if self.request.user.is_authenticated:
             if self.request.user.is_staff or self.request.user.is_superuser:
                 return queryset
@@ -245,14 +266,26 @@ class FavouriteRestaurantViewSet(viewsets.ModelViewSet):
 
 
 class FavouriteRestaurantItemViewSet(viewsets.ModelViewSet):
-    queryset = FavouriteRestaurantItem.objects.select_related('user', 'menu_item').all()
+    queryset = FavouriteRestaurantItem.objects.select_related(
+        'user', 
+        'menu_item',
+        'menu_item__category',
+        'menu_item__menu',
+        'menu_item__menu__restaurant'
+    ).all()
     serializer_class = FavouriteRestaurantItemSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['user_id', 'menu_item_id']
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = FavouriteRestaurantItem.objects.select_related('user', 'menu_item').all()
+        queryset = FavouriteRestaurantItem.objects.select_related(
+            'user', 
+            'menu_item',
+            'menu_item__category',
+            'menu_item__menu',
+            'menu_item__menu__restaurant'
+        ).all()
         if self.request.user.is_authenticated:
             if self.request.user.is_staff or self.request.user.is_superuser:
                 return queryset

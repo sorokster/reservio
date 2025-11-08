@@ -85,8 +85,12 @@ class RestaurantSerializer(serializers.ModelSerializer):
 
     def get_cuisines(self, obj):
         try:
-            # Get cuisines directly associated with this restaurant via ManyToMany
-            cuisines = obj.cuisines.all()
+            # Use prefetched cuisines if available (from ViewSet prefetch_related)
+            if hasattr(obj, '_prefetched_objects_cache') and 'cuisines' in obj._prefetched_objects_cache:
+                cuisines = obj._prefetched_objects_cache['cuisines']
+            else:
+                # Fallback: query if not prefetched
+                cuisines = obj.cuisines.all()
             return CuisineSerializer(cuisines, many=True).data
         except Exception as e:
             # Return empty list if there's an error
@@ -103,8 +107,12 @@ class RestaurantSerializer(serializers.ModelSerializer):
         return obj.reviews.count()
     
     def get_positions(self, obj):
-        # Get all positions for this restaurant
-        positions = RestaurantPosition.objects.filter(restaurant=obj).select_related('country', 'city')
+        # Use prefetched positions if available (from ViewSet prefetch_related)
+        if hasattr(obj, '_prefetched_objects_cache') and 'positions' in obj._prefetched_objects_cache:
+            positions = obj._prefetched_objects_cache['positions']
+        else:
+            # Fallback: query if not prefetched
+            positions = RestaurantPosition.objects.filter(restaurant=obj).select_related('country', 'city')
         return RestaurantPositionSerializer(positions, many=True).data
 
 
@@ -202,7 +210,13 @@ class MenuItemSerializer(serializers.ModelSerializer):
     
     def get_restaurant_id(self, obj):
         try:
-            # Get restaurant through category -> menu -> restaurant
+            # Try to get restaurant_id from prefetched menu (MenuItem has direct FK to Menu)
+            if hasattr(obj, 'menu') and obj.menu:
+                if hasattr(obj.menu, 'restaurant_id'):
+                    return obj.menu.restaurant_id
+                elif hasattr(obj.menu, 'restaurant'):
+                    return obj.menu.restaurant.id if obj.menu.restaurant else None
+            # Fallback: Get restaurant through category -> menu -> restaurant
             if hasattr(obj, 'category') and obj.category:
                 # Get first menu from category (categories have many menus)
                 menus = obj.category.menu.all()
@@ -235,9 +249,13 @@ class MenuSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
     
     def get_categories(self, obj):
-        # Get categories with order from intermediate model
+        # Use prefetched category_orders if available (from ViewSet prefetch_related)
         from backend.common.models import MenuCategoryOrder
-        category_orders = MenuCategoryOrder.objects.filter(menu=obj).select_related('category').order_by('order')
+        if hasattr(obj, '_prefetched_objects_cache') and 'category_orders' in obj._prefetched_objects_cache:
+            category_orders = obj._prefetched_objects_cache['category_orders']
+        else:
+            # Fallback: query if not prefetched
+            category_orders = MenuCategoryOrder.objects.filter(menu=obj).select_related('category').order_by('order')
         serializer = MenuCategorySerializer(
             [co.category for co in category_orders],
             many=True,
@@ -246,7 +264,12 @@ class MenuSerializer(serializers.ModelSerializer):
         return serializer.data
     
     def get_items(self, obj):
-        items = MenuItem.objects.filter(menu=obj).select_related('category', 'menu').distinct()
+        # Use prefetched items if available (from ViewSet prefetch_related)
+        if hasattr(obj, '_prefetched_objects_cache') and 'items' in obj._prefetched_objects_cache:
+            items = obj._prefetched_objects_cache['items']
+        else:
+            # Fallback: query if not prefetched
+            items = MenuItem.objects.filter(menu=obj).select_related('category', 'menu').distinct()
         return MenuItemSerializer(items, many=True).data
 
 
