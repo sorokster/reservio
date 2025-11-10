@@ -38,7 +38,7 @@ export const RestaurantTabs: React.FC<RestaurantTabsProps> = ({
   return (
     <div
       className={cn(
-        "sticky top-16 z-40 bg-white border-b border-gray-200 shadow-sm",
+        "sticky top-16 z-10 bg-white border-b border-gray-200 shadow-sm",
         className
       )}
     >

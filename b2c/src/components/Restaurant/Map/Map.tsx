@@ -3,37 +3,37 @@
 import React from "react";
 import { cn } from "@/src/lib/utils";
 
-import type { RestaurantPosition } from "@/src/types/restaurant-position";
+import type { RestaurantLocation } from "@/src/types/restaurant-location";
 
 export interface RestaurantMapProps {
-  positions?: RestaurantPosition[];
+  locations?: RestaurantLocation[];
   address?: string;
   restaurantName?: string;
   className?: string;
 }
 
 export const RestaurantMap: React.FC<RestaurantMapProps> = ({
-  positions,
+  locations,
   address,
   restaurantName,
   className,
 }) => {
-  // Get first position with coordinates, or use address
+  // Get first location with coordinates, or use address
   const getMapUrl = () => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
     
-    // Try to find first position with coordinates
-    const positionWithCoords = positions?.find(
-      (pos) => pos.latitude !== null && pos.longitude !== null
+    // Try to find first location with coordinates
+    const locationWithCoords = locations?.find(
+      (loc) => loc.latitude !== null && loc.longitude !== null
     );
     
-    if (positionWithCoords && positionWithCoords.latitude && positionWithCoords.longitude) {
-      // Use coordinates from RestaurantPosition
+    if (locationWithCoords && locationWithCoords.latitude && locationWithCoords.longitude) {
+      // Use coordinates from RestaurantLocation
       if (apiKey) {
-        return `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${positionWithCoords.latitude},${positionWithCoords.longitude}&zoom=15`;
+        return `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${locationWithCoords.latitude},${locationWithCoords.longitude}&zoom=15`;
       } else {
         // Fallback to OpenStreetMap
-        return `https://www.openstreetmap.org/export/embed.html?bbox=${positionWithCoords.longitude - 0.01},${positionWithCoords.latitude - 0.01},${positionWithCoords.longitude + 0.01},${positionWithCoords.latitude + 0.01}&layer=mapnik&marker=${positionWithCoords.latitude},${positionWithCoords.longitude}`;
+        return `https://www.openstreetmap.org/export/embed.html?bbox=${locationWithCoords.longitude - 0.01},${locationWithCoords.latitude - 0.01},${locationWithCoords.longitude + 0.01},${locationWithCoords.latitude + 0.01}&layer=mapnik&marker=${locationWithCoords.latitude},${locationWithCoords.longitude}`;
       }
     } else if (address) {
       // Use address for geocoding if no coordinates available

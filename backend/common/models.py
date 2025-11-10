@@ -76,7 +76,6 @@ class Company(models.Model):
 # ----------------------------
 class Restaurant(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='restaurants', db_index=True)
-    country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name='restaurants', db_index=True)
     city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='restaurants', db_index=True)
     name = models.CharField(max_length=255)
     address = models.CharField(max_length=255)
@@ -91,11 +90,8 @@ class Restaurant(models.Model):
         indexes = [
             models.Index(fields=['name']),
             models.Index(fields=['company']),
-            models.Index(fields=['country']),
             models.Index(fields=['city']),
-            # Composite indexes for common filter combinations
-            models.Index(fields=['country', 'city'], name='common_rest_cntry_city_idx'),
-            models.Index(fields=['country', 'city', 'is_active'], name='common_rest_cntry_city_act_idx'),
+            models.Index(fields=['city', 'is_active'], name='common_rest_city_act_idx'),
         ]
         ordering = ['name']
 
@@ -104,12 +100,12 @@ class Restaurant(models.Model):
 
 
 # ----------------------------
-# Restaurant Position
+# Restaurant Location
 # ----------------------------
-class RestaurantPosition(models.Model):
-    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='positions', db_index=True)
-    country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name='positions', db_index=True)
-    city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='positions', db_index=True)
+class RestaurantLocation(models.Model):
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='locations', db_index=True)
+    country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name='locations', db_index=True)
+    city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='locations', db_index=True)
     address = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     latitude = models.FloatField(blank=True, null=True)
@@ -226,7 +222,7 @@ class MenuCategory(models.Model):
 
 
 # ----------------------------
-# MenuCategoryOrder (Intermediate model for Menu-MenuCategory ManyToMany)
+# MenuCategoryOrder
 # ----------------------------
 class MenuCategoryOrder(models.Model):
     menu = models.ForeignKey(Menu, on_delete=models.CASCADE, related_name='category_orders', db_index=True)
@@ -235,8 +231,8 @@ class MenuCategoryOrder(models.Model):
 
     class Meta:
         unique_together = [
-            ('menu', 'category'),  # One category can appear only once per menu
-            ('menu', 'order'),     # Order must be unique within each menu
+            ('menu', 'category'),
+            ('menu', 'order'),
         ]
         indexes = [
             models.Index(fields=['menu', 'order']),
@@ -288,7 +284,6 @@ class Reservation(models.Model):
         indexes = [
             models.Index(fields=['table']),
             models.Index(fields=['restaurant', 'date']),
-            # Composite indexes for common filter combinations
             models.Index(fields=['user', 'date'], name='common_reserv_user_date_idx'),
             models.Index(fields=['restaurant', 'date', 'table'], name='common_reserv_rest_dt_tbl_idx'),
         ]
@@ -318,7 +313,7 @@ class ReservationSlot(models.Model):
 
 # ----------------------------
 # ReservationStatus
-# ---------------------------ф-
+# ----------------------------
 class ReservationStatus(models.Model):
     reservation = models.ForeignKey(Reservation, on_delete=models.CASCADE, related_name='statuses', db_index=True)
     status = models.IntegerField(choices=SlotStatus.choices, db_index=True)
@@ -351,7 +346,6 @@ class Review(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=['restaurant', 'created_at']),
-            # Composite index for rating filters
             models.Index(fields=['restaurant', 'overall'], name='common_review_rest_overall_idx'),
         ]
         ordering = ['-created_at']

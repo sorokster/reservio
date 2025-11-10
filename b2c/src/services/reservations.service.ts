@@ -10,7 +10,7 @@ export interface CreateReservationData {
   guests: number;
   time_from: string;
   time_to: string;
-  user_id: number;
+  // user_id is not needed - backend gets it from session
 }
 
 /**

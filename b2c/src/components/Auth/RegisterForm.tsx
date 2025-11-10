@@ -41,6 +41,16 @@ export const RegisterForm: React.FC = () => {
       });
 
       if (result?.ok) {
+        // Ensure Django session is set in browser after NextAuth login
+        try {
+          await authService.login({
+            username: formData.username,
+            password: formData.password,
+          });
+        } catch (err) {
+          console.error("Failed to sync Django session:", err);
+          // Continue anyway - NextAuth session is still valid
+        }
         router.push("/");
         router.refresh();
       } else {

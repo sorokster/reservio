@@ -173,11 +173,11 @@ export default function ReservationDetailPage() {
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">
                       {reservation.restaurant.name}
                     </h2>
-                    {reservation.restaurant.city && reservation.restaurant.country && (
+                    {reservation.restaurant.city && reservation.restaurant.city.country && (
                       <p className="text-gray-600">
                         {reservation.restaurant.address}
                         <br />
-                        {reservation.restaurant.city.name}, {reservation.restaurant.country.name}
+                        {reservation.restaurant.city.name}, {reservation.restaurant.city.country.name}
                       </p>
                     )}
                   </div>

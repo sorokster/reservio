@@ -126,9 +126,9 @@ export class ApiService {
         const dataDisplay = data && typeof data === 'object' && Object.keys(data).length === 0 
           ? '(empty object - possible backend error)' 
           : data;
-      console.error(`API Error [${method.toUpperCase()} ${url}]:`, {
-        status,
-        statusText,
+        console.error(`API Error [${method.toUpperCase()} ${url}]:`, {
+          status,
+          statusText,
           data: dataDisplay,
           message,
           fullError: axiosError.response ? {
@@ -143,9 +143,19 @@ export class ApiService {
       } else if (!status && data && typeof data === 'object' && Object.keys(data).length === 0) {
         // Log warning for empty object responses without status code
         console.warn(`API Warning [${method.toUpperCase()} ${url}]: Received empty object response`, {
-        data,
+          data,
           error: axiosError,
-      });
+        });
+      }
+      
+      // Additional check: if we have a status but empty data, try to extract more info
+      if (status && data && typeof data === 'object' && Object.keys(data).length === 0) {
+        console.error(`API Error [${method.toUpperCase()} ${url}]: Empty response body`, {
+          status,
+          statusText,
+          responseHeaders: axiosError.response?.headers,
+          requestHeaders: axiosError.config?.headers,
+        });
       }
       
       throw new ApiError(message, axiosError);
@@ -181,6 +191,14 @@ export class ApiService {
   protected async post<T>(url: string, data?: any, config?: any): Promise<T> {
     try {
       const response: AxiosResponse<T> = await this.client.post(url, data, config);
+      // Check if response data is empty object and log for debugging
+      if (response.data && typeof response.data === 'object' && Object.keys(response.data).length === 0) {
+        console.warn(`API Warning [POST ${url}]: Received empty object response`, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        });
+      }
       return response.data;
     } catch (error) {
       this.handleError(error, url, "POST");

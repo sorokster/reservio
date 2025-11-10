@@ -1,8 +1,7 @@
-import type { Country } from "./country";
 import type { City } from "./city";
 import type { Company } from "./company";
 import type { Cuisine } from "./cuisine";
-import type { RestaurantPosition } from "./restaurant-position";
+import type { RestaurantLocation } from "./restaurant-location";
 
 export interface Restaurant {
   id: number;
@@ -12,10 +11,9 @@ export interface Restaurant {
   email: string | null;
   preview: string | null;
   company: Company;
-  country: Country;
   city: City;
   cuisines?: Cuisine[];
-  positions?: RestaurantPosition[];
+  locations?: RestaurantLocation[];
   average_rating: number | null;
   review_count: number;
   created_at: string;

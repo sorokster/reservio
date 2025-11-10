@@ -138,9 +138,9 @@ export const TopRestaurantCard: React.FC<TopRestaurantCardProps> = ({
             )}>
               {restaurant.name}
             </h3>
-            {restaurant.city && restaurant.country && (
+            {restaurant.city && restaurant.city.country && (
               <p className="text-white/80 text-xs">
-                {restaurant.city.name}, {restaurant.country.name}
+                {restaurant.city.name}, {restaurant.city.country.name}
               </p>
             )}
           </div>

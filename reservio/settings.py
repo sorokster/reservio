@@ -42,19 +42,19 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'corsheaders',
 
-    'backend.b2c',
+    'backend.api',
     'backend.common',
 ]
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 12,
+    'PAGE_SIZE': 10,
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+        'backend.api.permissions.PublicReadOrAuthenticatedWrite',
     ],
 }
 
@@ -64,7 +64,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'backend.common.middleware.DisableCSRFForAPI',  # Disable CSRF for API endpoints
+    'backend.common.middleware.DisableCSRFForAPI',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -147,8 +147,8 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-MEDIA_URL = '/b2c/public/assets/'
-MEDIA_ROOT = BASE_DIR / 'b2c' / 'public' / 'assets'
+MEDIA_URL = '/api/public/assets/'
+MEDIA_ROOT = BASE_DIR / 'api' / 'public' / 'assets'
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = ["http://localhost:3000"]
@@ -158,6 +158,6 @@ CSRF_TRUSTED_ORIGINS = ["http://localhost:3000"]
 SESSION_COOKIE_NAME = "sessionid"
 SESSION_COOKIE_PATH = "/"
 SESSION_COOKIE_DOMAIN = None
-SESSION_COOKIE_SAMESITE = None
+SESSION_COOKIE_SAMESITE = "Lax"  # Changed from None to Lax for better cross-origin support
 SESSION_COOKIE_SECURE = False
 SESSION_COOKIE_HTTPONLY = True

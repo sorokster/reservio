@@ -29,6 +29,8 @@ export const authOptions: NextAuthOptions = {
           const data = await res.json();
 
           if (res.ok && data.status === "success") {
+            // Note: Django session cookie is set on the server side
+            // Client will need to call Django login endpoint directly to get cookie in browser
             return {
               id: data.id,
               username: data.username,

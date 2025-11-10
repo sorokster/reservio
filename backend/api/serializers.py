@@ -1,11 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from backend.common.models import (
-    Country, City, Company, Restaurant, RestaurantPosition, Schedule,
+    Country, City, Company, Restaurant, RestaurantLocation, Schedule,
     Table, TableStatus, Menu, Cuisine, MenuItem, MenuCategory,
     Reservation, ReservationSlot, ReservationStatus,
     Review, FavouriteRestaurant, FavouriteRestaurantItem,
-    SlotStatus
+    SlotStatus, MenuCategoryOrder
 )
 
 # ----------------------------
@@ -59,10 +59,6 @@ class RestaurantSerializer(serializers.ModelSerializer):
     company_id = serializers.PrimaryKeyRelatedField(
         queryset=Company.objects.all(), source='company', write_only=True
     )
-    country = CountrySerializer(read_only=True)
-    country_id = serializers.PrimaryKeyRelatedField(
-        queryset=Country.objects.all(), source='country', write_only=True
-    )
     city = CitySerializer(read_only=True)
     city_id = serializers.PrimaryKeyRelatedField(
         queryset=City.objects.all(), source='city', write_only=True
@@ -70,30 +66,27 @@ class RestaurantSerializer(serializers.ModelSerializer):
     cuisines = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
     review_count = serializers.SerializerMethodField()
-    positions = serializers.SerializerMethodField()
+    locations = serializers.SerializerMethodField()
 
     class Meta:
         model = Restaurant
         fields = [
             'id', 'name', 'address', 'phone', 'email',
-            'company', 'company_id', 'country', 'country_id',
+            'company', 'company_id',
             'city', 'city_id', 'preview',
-            'cuisines', 'average_rating', 'review_count', 'positions',
+            'cuisines', 'average_rating', 'review_count', 'locations',
             'created_at', 'updated_at'
         ]
         ordering = ['name']
 
     def get_cuisines(self, obj):
         try:
-            # Use prefetched cuisines if available (from ViewSet prefetch_related)
             if hasattr(obj, '_prefetched_objects_cache') and 'cuisines' in obj._prefetched_objects_cache:
                 cuisines = obj._prefetched_objects_cache['cuisines']
             else:
-                # Fallback: query if not prefetched
                 cuisines = obj.cuisines.all()
             return CuisineSerializer(cuisines, many=True).data
         except Exception as e:
-            # Return empty list if there's an error
             return []
 
     def get_average_rating(self, obj):
@@ -106,25 +99,23 @@ class RestaurantSerializer(serializers.ModelSerializer):
             return obj.review_count_annotated
         return obj.reviews.count()
     
-    def get_positions(self, obj):
-        # Use prefetched positions if available (from ViewSet prefetch_related)
-        if hasattr(obj, '_prefetched_objects_cache') and 'positions' in obj._prefetched_objects_cache:
-            positions = obj._prefetched_objects_cache['positions']
+    def get_locations(self, obj):
+        if hasattr(obj, '_prefetched_objects_cache') and 'locations' in obj._prefetched_objects_cache:
+            locations = obj._prefetched_objects_cache['locations']
         else:
-            # Fallback: query if not prefetched
-            positions = RestaurantPosition.objects.filter(restaurant=obj).select_related('country', 'city')
-        return RestaurantPositionSerializer(positions, many=True).data
+            locations = RestaurantLocation.objects.filter(restaurant=obj).select_related('country', 'city')
+        return RestaurantLocationSerializer(locations, many=True).data
 
 
 # ----------------------------
-# Restaurant Position
+# Restaurant Location
 # ----------------------------
-class RestaurantPositionSerializer(serializers.ModelSerializer):
+class RestaurantLocationSerializer(serializers.ModelSerializer):
     country = CountrySerializer(read_only=True)
     city = CitySerializer(read_only=True)
     
     class Meta:
-        model = RestaurantPosition
+        model = RestaurantLocation
         fields = ['id', 'restaurant', 'country', 'city', 'address', 'description', 'latitude', 'longitude', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
@@ -179,12 +170,9 @@ class MenuCategorySerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
     
     def get_order(self, obj):
-        # Get order from the intermediate model (MenuCategoryOrder)
-        # We need to get the menu from context
         menu = self.context.get('menu')
         if menu:
             try:
-                from backend.common.models import MenuCategoryOrder
                 order_obj = MenuCategoryOrder.objects.get(menu=menu, category=obj)
                 return order_obj.order
             except MenuCategoryOrder.DoesNotExist:
@@ -210,15 +198,12 @@ class MenuItemSerializer(serializers.ModelSerializer):
     
     def get_restaurant_id(self, obj):
         try:
-            # Try to get restaurant_id from prefetched menu (MenuItem has direct FK to Menu)
             if hasattr(obj, 'menu') and obj.menu:
                 if hasattr(obj.menu, 'restaurant_id'):
                     return obj.menu.restaurant_id
                 elif hasattr(obj.menu, 'restaurant'):
                     return obj.menu.restaurant.id if obj.menu.restaurant else None
-            # Fallback: Get restaurant through category -> menu -> restaurant
             if hasattr(obj, 'category') and obj.category:
-                # Get first menu from category (categories have many menus)
                 menus = obj.category.menu.all()
                 if menus.exists():
                     menu = menus.first()
@@ -228,7 +213,6 @@ class MenuItemSerializer(serializers.ModelSerializer):
                         return menu.restaurant.id if menu.restaurant else None
             return None
         except Exception:
-            # Return None if there's any error
             return None
 
 
@@ -249,12 +233,10 @@ class MenuSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
     
     def get_categories(self, obj):
-        # Use prefetched category_orders if available (from ViewSet prefetch_related)
         from backend.common.models import MenuCategoryOrder
         if hasattr(obj, '_prefetched_objects_cache') and 'category_orders' in obj._prefetched_objects_cache:
             category_orders = obj._prefetched_objects_cache['category_orders']
         else:
-            # Fallback: query if not prefetched
             category_orders = MenuCategoryOrder.objects.filter(menu=obj).select_related('category').order_by('order')
         serializer = MenuCategorySerializer(
             [co.category for co in category_orders],
@@ -264,11 +246,9 @@ class MenuSerializer(serializers.ModelSerializer):
         return serializer.data
     
     def get_items(self, obj):
-        # Use prefetched items if available (from ViewSet prefetch_related)
         if hasattr(obj, '_prefetched_objects_cache') and 'items' in obj._prefetched_objects_cache:
             items = obj._prefetched_objects_cache['items']
         else:
-            # Fallback: query if not prefetched
             items = MenuItem.objects.filter(menu=obj).select_related('category', 'menu').distinct()
         return MenuItemSerializer(items, many=True).data
 
@@ -292,7 +272,6 @@ class ReservationStatusSerializer(serializers.ModelSerializer):
         if isinstance(data, dict) and 'status' in data:
             status = data['status']
             if isinstance(status, str):
-                # Map string to integer
                 status_map = {
                     'pending': SlotStatus.PENDING,
                     'confirmed': SlotStatus.CONFIRMED,
@@ -336,28 +315,22 @@ class ReservationSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        # Extract nested data
         time_slots_data = validated_data.pop('time_slots_data', [])
         time_from = validated_data.pop('time_from', None)
         time_to = validated_data.pop('time_to', None)
         statuses_data = validated_data.pop('statuses_data', [])
-        
-        # Create reservation
+
         reservation = Reservation.objects.create(**validated_data)
-        
-        # Create time slots from time_slots_data if provided
         if time_slots_data:
             for slot_data in time_slots_data:
                 ReservationSlot.objects.create(reservation=reservation, **slot_data)
-        # Or create a single time slot from time_from and time_to if provided
         elif time_from and time_to:
             ReservationSlot.objects.create(
                 reservation=reservation,
                 time_from=time_from,
                 time_to=time_to
             )
-        
-        # Create status (default to 'pending' if not provided)
+
         if not statuses_data:
             ReservationStatus.objects.create(
                 reservation=reservation,
@@ -365,7 +338,6 @@ class ReservationSerializer(serializers.ModelSerializer):
             )
         else:
             for status_data in statuses_data:
-                # Ensure status is an integer
                 if 'status' in status_data and isinstance(status_data['status'], str):
                     status_map = {
                         'pending': SlotStatus.PENDING,
@@ -378,38 +350,29 @@ class ReservationSerializer(serializers.ModelSerializer):
         return reservation
 
     def update(self, instance, validated_data):
-        # Extract nested data
         time_slots_data = validated_data.pop('time_slots_data', None)
         time_from = validated_data.pop('time_from', None)
         time_to = validated_data.pop('time_to', None)
         statuses_data = validated_data.pop('statuses_data', None)
-        
-        # Update reservation fields
+
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-        
-        # Update time slots if provided
+
         if time_slots_data is not None:
-            # Delete existing slots
             instance.time_slots.all().delete()
-            # Create new slots
             for slot_data in time_slots_data:
                 ReservationSlot.objects.create(reservation=instance, **slot_data)
         elif time_from is not None and time_to is not None:
-            # Delete existing slots and create a single new slot
             instance.time_slots.all().delete()
             ReservationSlot.objects.create(
                 reservation=instance,
                 time_from=time_from,
                 time_to=time_to
             )
-        
-        # Update status if provided
+
         if statuses_data is not None:
-            # Create new status (keeping history)
             for status_data in statuses_data:
-                # Ensure status is an integer
                 if 'status' in status_data and isinstance(status_data['status'], str):
                     status_map = {
                         'pending': SlotStatus.PENDING,

@@ -49,9 +49,9 @@ export const ReservationCard: React.FC<ReservationCardProps> = ({
               >
                 {reservation.restaurant.name}
               </Link>
-              {reservation.restaurant.city && reservation.restaurant.country && (
+              {reservation.restaurant.city && reservation.restaurant.city.country && (
                 <p className="text-sm text-gray-600 mt-1">
-                  {reservation.restaurant.city.name}, {reservation.restaurant.country.name}
+                  {reservation.restaurant.city.name}, {reservation.restaurant.city.country.name}
                 </p>
               )}
           </div>

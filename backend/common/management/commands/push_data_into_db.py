@@ -3,7 +3,7 @@ from datetime import time, timedelta, date
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from backend.common.models import (
-    Country, City, Company, Restaurant, RestaurantPosition, Schedule, Table, TableStatus,
+    Country, City, Company, Restaurant, RestaurantLocation, Schedule, Table, TableStatus,
     Menu, Cuisine, MenuCategory, MenuCategoryOrder, MenuItem, Reservation, ReservationSlot, ReservationStatus,
     Review, FavouriteRestaurant, FavouriteRestaurantItem, WeekDay, SlotStatus
 )
@@ -269,7 +269,6 @@ def create_restaurants():
             
             restaurant = Restaurant.objects.create(
                 company=company,
-                country=ukraine,
                 city=city,
                 name=restaurant_name,
                 address=f"{address_number} {address_street}, {city.name}",
@@ -278,13 +277,13 @@ def create_restaurants():
                 is_active=True,
             )
             
-            # Create restaurant position with real coordinates (with small random offset)
+            # Create restaurant location with real coordinates (with small random offset)
             offset_lat = random.uniform(-0.01, 0.01)
             offset_lng = random.uniform(-0.01, 0.01)
             
-            RestaurantPosition.objects.create(
+            RestaurantLocation.objects.create(
                 restaurant=restaurant,
-                country=ukraine,
+                country=city.country,
                 city=city,
                 address=f"{address_number} {address_street}, {city.name}",
                 description=f"{restaurant_name} located in the heart of {city.name}.",
@@ -308,7 +307,6 @@ def create_restaurants():
             company = random.choice(all_companies)
             restaurant = Restaurant.objects.create(
                 company=company,
-                country=poland,
                 city=city,
                 name=f"{city.name} {random.choice(['Bistro', 'Grill', 'Cafe', 'Restaurant'])}",
                 address=f"{random.randint(1, 200)} {random.choice(['Main St', 'Central Ave', 'Old Town'])}",
@@ -320,9 +318,9 @@ def create_restaurants():
             offset_lat = random.uniform(-0.01, 0.01)
             offset_lng = random.uniform(-0.01, 0.01)
             
-            RestaurantPosition.objects.create(
+            RestaurantLocation.objects.create(
                 restaurant=restaurant,
-                country=poland,
+                country=city.country,
                 city=city,
                 address=f"{random.randint(1, 200)} {random.choice(['Main St', 'Central Ave', 'Old Town'])}, {city.name}",
                 description=f"Restaurant located in {city.name}.",
@@ -508,5 +506,5 @@ class Command(BaseCommand):
         restaurant_count = Restaurant.objects.count()
         self.stdout.write(self.style.SUCCESS(f"🎉 Database populated successfully!"))
         self.stdout.write(self.style.SUCCESS(f"   Created {restaurant_count} restaurants"))
-        self.stdout.write(self.style.SUCCESS(f"   Created {RestaurantPosition.objects.count()} restaurant positions"))
+        self.stdout.write(self.style.SUCCESS(f"   Created {RestaurantLocation.objects.count()} restaurant locations"))
         self.stdout.write(self.style.SUCCESS(f"   Created {Review.objects.count()} reviews"))

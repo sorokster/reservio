@@ -42,7 +42,8 @@ export const RestaurantSchedule: React.FC<RestaurantScheduleProps> = ({
           <div className="space-y-2">
             {sortedSchedules.map((schedule) => {
               const isToday = schedule.weekday === currentDay;
-              const dayName = schedule.weekday_display || DAY_NAMES[schedule.weekday];
+              // weekday is 1-7, DAY_NAMES array is 0-indexed, so subtract 1
+              const dayName = schedule.weekday_display || DAY_NAMES[schedule.weekday - 1];
               const isClosed = schedule.is_closed;
               const hasHours = schedule.time_from && schedule.time_to;
 

@@ -1,16 +1,18 @@
 import type { Schedule } from "@/src/types/schedule";
 
 /**
- * Day names mapping (0 = Monday, 6 = Sunday)
+ * Day names mapping (index 0 = Monday, index 6 = Sunday)
+ * Note: weekday values from backend are 1-7 (Monday=1, Sunday=7)
+ * To use with DAY_NAMES array, subtract 1: DAY_NAMES[weekday - 1]
  */
 export const DAY_NAMES = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
+  "Monday",   // index 0, weekday 1
+  "Tuesday",  // index 1, weekday 2
+  "Wednesday", // index 2, weekday 3
+  "Thursday",  // index 3, weekday 4
+  "Friday",    // index 4, weekday 5
+  "Saturday",  // index 5, weekday 6
+  "Sunday",    // index 6, weekday 7
 ] as const;
 
 /**
@@ -42,22 +44,26 @@ export function formatTime(time: string | null | undefined): string | null {
 }
 
 /**
- * Get current day of week (0 = Monday, 6 = Sunday)
+ * Get current day of week (1 = Monday, 7 = Sunday)
+ * Matches Django WeekDay model: MON = 1, TUE = 2, ..., SUN = 7
  */
 export function getCurrentDay(): number {
   const today = new Date().getDay();
-  // Convert Sunday (0) to 6, Monday (1) to 0, etc.
-  return today === 0 ? 6 : today - 1;
+  // Convert JavaScript day (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+  // to Django format (1 = Monday, 2 = Tuesday, ..., 7 = Sunday)
+  return today === 0 ? 7 : today;
 }
 
 /**
- * Get weekday for a date string (0 = Monday, 6 = Sunday)
+ * Get weekday for a date string (1 = Monday, 7 = Sunday)
+ * Matches Django WeekDay model: MON = 1, TUE = 2, ..., SUN = 7
  */
 export function getWeekdayForDate(dateString: string): number {
   const date = new Date(dateString);
   const day = date.getDay();
-  // Convert Sunday (0) to 6, Monday (1) to 0, etc.
-  return day === 0 ? 6 : day - 1;
+  // Convert JavaScript day (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+  // to Django format (1 = Monday, 2 = Tuesday, ..., 7 = Sunday)
+  return day === 0 ? 7 : day;
 }
 
 /**
@@ -162,7 +168,8 @@ export function getRestaurantStatus(schedules: Schedule[]): RestaurantStatusResu
 
   // Check if closed today but might open tomorrow
   if (currentTimeMinutes >= toTime) {
-    const nextDay = (currentDay + 1) % 7;
+    // Calculate next day (1-7 format: Monday=1, Sunday=7)
+    const nextDay = currentDay === 7 ? 1 : currentDay + 1;
     const nextDaySchedule = getScheduleForWeekday(sortedSchedules, nextDay);
     
     if (nextDaySchedule && !nextDaySchedule.is_closed && nextDaySchedule.time_from) {
@@ -199,11 +206,15 @@ export interface TimeOption {
  * @param schedule - Schedule object
  * @param intervalMinutes - Interval between time slots (default: 30)
  * @param minHoursBeforeClose - Minimum hours before closing (default: 1)
+ * @param selectedDate - Selected date string (YYYY-MM-DD format) to filter past times
+ * @param minMinutesFromNow - Minimum minutes from current time for booking (default: 30)
  */
 export function generateTimeOptions(
   schedule: Schedule | null,
   intervalMinutes: number = 30,
-  minHoursBeforeClose: number = 1
+  minHoursBeforeClose: number = 1,
+  selectedDate?: string,
+  minMinutesFromNow: number = 30
 ): TimeOption[] {
   if (!schedule || schedule.is_closed || !schedule.time_from || !schedule.time_to) {
     return [];
@@ -214,8 +225,30 @@ export function generateTimeOptions(
   const toTime = timeToMinutes(schedule.time_to);
   const minTimeBeforeClose = minHoursBeforeClose * 60; // Convert to minutes
   
+  // Calculate minimum time for today's bookings
+  let minBookingTime = fromTime;
+  if (selectedDate) {
+    const today = new Date();
+    const selected = new Date(selectedDate);
+    const isToday = 
+      selected.getFullYear() === today.getFullYear() &&
+      selected.getMonth() === today.getMonth() &&
+      selected.getDate() === today.getDate();
+    
+    if (isToday) {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      // Minimum booking time is current time + minMinutesFromNow, rounded up to next interval
+      const minAllowedMinutes = currentMinutes + minMinutesFromNow;
+      // Round up to next interval
+      const roundedMinMinutes = Math.ceil(minAllowedMinutes / intervalMinutes) * intervalMinutes;
+      minBookingTime = Math.max(fromTime, roundedMinMinutes);
+    }
+  }
+  
   // Generate slots every intervalMinutes, but ensure we have at least minHoursBeforeClose before closing
-  for (let minutes = fromTime; minutes < toTime - minTimeBeforeClose; minutes += intervalMinutes) {
+  // and start from minBookingTime (which accounts for current time if today)
+  for (let minutes = minBookingTime; minutes < toTime - minTimeBeforeClose; minutes += intervalMinutes) {
     const timeString = minutesToTime(minutes);
     options.push({ value: timeString, label: timeString });
   }
@@ -225,15 +258,46 @@ export function generateTimeOptions(
 
 /**
  * Check if reservation time is valid (ends at least minHoursBeforeClose before closing)
+ * Also checks that the time is not in the past (if date is today)
+ * @param schedule - Schedule object
+ * @param timeFrom - Start time string (HH:MM)
+ * @param timeTo - End time string (HH:MM)
+ * @param minHoursBeforeClose - Minimum hours before closing (default: 1)
+ * @param selectedDate - Selected date string (YYYY-MM-DD format) to check if time is in past
+ * @param minMinutesFromNow - Minimum minutes from current time for booking (default: 30)
  */
 export function isReservationTimeValid(
   schedule: Schedule | null,
   timeFrom: string,
   timeTo: string,
-  minHoursBeforeClose: number = 1
+  minHoursBeforeClose: number = 1,
+  selectedDate?: string,
+  minMinutesFromNow: number = 30
 ): boolean {
   if (!schedule || schedule.is_closed || !schedule.time_to) {
     return false;
+  }
+
+  // Check if time is in the past (if date is today)
+  if (selectedDate && timeFrom) {
+    const today = new Date();
+    const selected = new Date(selectedDate);
+    const isToday = 
+      selected.getFullYear() === today.getFullYear() &&
+      selected.getMonth() === today.getMonth() &&
+      selected.getDate() === today.getDate();
+    
+    if (isToday) {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const fromTime = timeToMinutes(timeFrom);
+      const minAllowedMinutes = currentMinutes + minMinutesFromNow;
+      
+      // Check if start time is at least minMinutesFromNow from now
+      if (fromTime < minAllowedMinutes) {
+        return false;
+      }
+    }
   }
 
   const toTime = timeToMinutes(timeTo);

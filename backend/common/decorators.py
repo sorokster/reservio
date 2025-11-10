@@ -8,11 +8,22 @@ from django.shortcuts import redirect
 def anonymous_required(func):
     @wraps(func)
     def wrapper(request, *args, **kwargs):
+        # Allow if not authenticated, or if authenticated but session might need refresh
+        # This allows re-login to refresh session cookie in browser
         if request.user.is_authenticated:
-            return JsonResponse({
-                'status': 'error',
-                'detail': 'You are already authenticated'
-            }, status=400)
+            # If already authenticated, refresh session and return success
+            # This ensures session cookie is set in browser
+            request.session.save()
+            response = JsonResponse({
+                'status': 'success',
+                'id': request.user.id,
+                'username': request.user.username,
+                'email': request.user.email,
+                'first_name': request.user.first_name,
+                'last_name': request.user.last_name,
+                'groups': [group.name for group in request.user.groups.all()],
+            })
+            return response
         return func(request, *args, **kwargs)
     return wrapper
 

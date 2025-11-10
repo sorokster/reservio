@@ -36,7 +36,9 @@ export const LoginForm: React.FC = () => {
       if (result?.error) {
         setError("Invalid username or password");
       } else if (result?.ok) {
-        // Also call Django login endpoint to set session cookie in browser
+        // NextAuth calls Django login on server, but we need to ensure
+        // the session cookie is set in the browser. Call Django login
+        // from client to establish session cookie in browser.
         try {
           await authService.login({
             username: formData.username,

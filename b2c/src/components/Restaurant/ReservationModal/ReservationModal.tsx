@@ -140,8 +140,8 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
 
   // Generate time options based on schedule
   const timeOptions = useMemo(() => {
-    return generateTimeOptions(selectedDateSchedule, 30, 1);
-  }, [selectedDateSchedule]);
+    return generateTimeOptions(selectedDateSchedule, 30, 1, date, 30);
+  }, [selectedDateSchedule, date]);
 
   // Filter time options for "to" based on "from" selection
   const timeToOptions = React.useMemo(() => {
@@ -180,6 +180,18 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
       setSelectedTable(null);
     }
   }, [date, guests, timeFrom, timeTo]);
+
+  // Reset time if it becomes invalid when date changes
+  useEffect(() => {
+    if (date && timeFrom) {
+      const options = generateTimeOptions(selectedDateSchedule, 30, 1, date, 30);
+      const isTimeValid = options.some(opt => opt.value === timeFrom);
+      if (!isTimeValid) {
+        setTimeFrom("");
+        setTimeTo("");
+      }
+    }
+  }, [date, selectedDateSchedule, timeFrom]);
 
   // Fetch tables and reservations only when all required fields are filled
   useEffect(() => {
@@ -267,10 +279,10 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
     }
   };
 
-  // Check if reservation is available (at least 1 hour before closing)
+  // Check if reservation is available (at least 1 hour before closing and not in the past)
   const isReservationAvailable = useMemo(() => {
-    return isReservationTimeValid(selectedDateSchedule, timeFrom, timeTo, 1);
-  }, [selectedDateSchedule, timeFrom, timeTo]);
+    return isReservationTimeValid(selectedDateSchedule, timeFrom, timeTo, 1, date, 30);
+  }, [selectedDateSchedule, timeFrom, timeTo, date]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -322,7 +334,7 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
         guests: guests,
         time_from: timeFrom,
         time_to: timeTo,
-        user_id: user.id,
+        // user_id is not needed - backend gets it from session via perform_create
       });
 
       // Find table number for display
@@ -354,7 +366,16 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
       setSuccess(false);
       setShowErrorScreen(true);
       if (err instanceof ApiError) {
-        setError(err.message || "Failed to create reservation");
+        // Check if it's an authentication error
+        if (err.status === 401 || err.status === 403) {
+          setError("Authentication required. Please sign in again.");
+          // Optionally redirect to login
+          setTimeout(() => {
+            window.location.href = "/auth/login";
+          }, 2000);
+        } else {
+          setError(err.message || "Failed to create reservation");
+        }
       } else if (err instanceof Error) {
         setError(err.message || "Failed to create reservation");
       } else {
@@ -392,7 +413,7 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="p-8">
           {/* Header */}

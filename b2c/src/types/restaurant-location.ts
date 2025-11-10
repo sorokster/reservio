@@ -1,7 +1,7 @@
 import type { Country } from "./country";
 import type { City } from "./city";
 
-export interface RestaurantPosition {
+export interface RestaurantLocation {
   id: number;
   restaurant: number;
   country: Country;

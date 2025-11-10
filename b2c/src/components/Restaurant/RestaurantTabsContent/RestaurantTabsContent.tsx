@@ -90,7 +90,7 @@ export const RestaurantTabsContent: React.FC<RestaurantTabsContentProps> = ({
               data-tab-id="map"
             >
               <RestaurantMap
-                positions={restaurant?.positions}
+                locations={restaurant?.locations}
                 address={restaurant?.address}
                 restaurantName={restaurant?.name}
                 className="w-full"

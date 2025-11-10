@@ -230,7 +230,7 @@ export const RestaurantMenu: React.FC<RestaurantMenuProps> = ({
 
         {/* Category Tabs - Sticky and Scrollable */}
         {allCategories.length > 0 && (
-          <div className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm rounded-t-2xl">
+          <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm rounded-t-2xl">
             <div className="overflow-x-auto scrollbar-hide scroll-smooth px-8">
               <div className="flex gap-2 min-w-max py-4">
                 {allCategories.map((category) => (

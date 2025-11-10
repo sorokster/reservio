@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import User, Group
 from .models import (
-    Country, City, Company, Restaurant, RestaurantPosition, Schedule,
+    Country, City, Company, Restaurant, RestaurantLocation, Schedule,
     Table, TableStatus, Menu, Cuisine, MenuItem, MenuCategory, MenuCategoryOrder,
     Reservation, ReservationSlot, ReservationStatus,
     Review, FavouriteRestaurant, FavouriteRestaurantItem
@@ -30,10 +30,10 @@ class CompanyAdmin(admin.ModelAdmin):
 
 @admin.register(Restaurant)
 class RestaurantAdmin(admin.ModelAdmin):
-    list_display = ['name', 'company', 'city', 'country', 'phone', 'is_active', 'created_at']
-    list_filter = ['company', 'country', 'city', 'is_active', 'created_at']
+    list_display = ['name', 'company', 'city', 'phone', 'is_active', 'created_at']
+    list_filter = ['company', 'city', 'is_active', 'created_at']
     search_fields = ['name', 'address', 'phone', 'email']
-    raw_id_fields = ['company', 'country', 'city']
+    raw_id_fields = ['company', 'city']
     readonly_fields = ['created_at', 'updated_at']
 
 @admin.register(Schedule)
@@ -118,8 +118,8 @@ class ReservationStatusAdmin(admin.ModelAdmin):
     raw_id_fields = ['reservation']
     readonly_fields = ['created_at', 'updated_at']
 
-@admin.register(RestaurantPosition)
-class RestaurantPositionAdmin(admin.ModelAdmin):
+@admin.register(RestaurantLocation)
+class RestaurantLocationAdmin(admin.ModelAdmin):
     list_display = ['restaurant', 'country', 'city', 'address', 'created_at']
     list_filter = ['country', 'city', 'created_at']
     search_fields = ['address', 'description']

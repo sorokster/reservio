@@ -20,6 +20,9 @@ class RegisterView(View):
             last_name = data.get('last_name', '')
             user_type = data.get('user_type')
 
+            if not username or not email or not password:
+                return JsonResponse({'status': 'error', 'detail': 'Username, email and password are required'}, status=400)
+
             if User.objects.filter(username=username).exists():
                 return JsonResponse({'status': 'error', 'detail': 'Username already exists'}, status=400)
 
@@ -38,6 +41,8 @@ class RegisterView(View):
 
             return JsonResponse({'status': 'success', 'username': new_user.username})
 
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'detail': 'Invalid JSON format'}, status=400)
         except Exception as e:
             return JsonResponse({'status': 'error', 'detail': str(e)}, status=400)
 
@@ -57,9 +62,11 @@ class LoginView(View):
             user = authenticate(request, username=username, password=password)
             if user is not None:
                 login(request, user)
+                # Explicitly save session to ensure cookie is set
+                request.session.save()
                 # Get user groups
                 groups = [group.name for group in user.groups.all()]
-                return JsonResponse({
+                response = JsonResponse({
                     'status': 'success',
                     'id': user.id,
                     'username': user.username,
@@ -68,6 +75,8 @@ class LoginView(View):
                     'last_name': user.last_name,
                     'groups': groups,
                 })
+                # Ensure session cookie is set in response
+                return response
             else:
                 return JsonResponse({'status': 'error', 'detail': 'Invalid username or password'}, status=400)
 
